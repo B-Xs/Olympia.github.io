@@ -1,119 +1,243 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lofi Demo Site</title>
-<style>
-    html, body {
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-        height: 100%;
-        font-family: 'Arial', sans-serif;
-        background: linear-gradient(135deg, #7B3F00, #FF8C42);
-        color: white;
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lofi Portal</title>
+  <style>
+    :root{
+      --bg:#06060b;
+      --accent:#9b59ff; /* purple */
+      --muted:#cfc9e9;
+      --glass: rgba(255,255,255,0.03);
     }
-    canvas {
-        display: block;
-        position: absolute;
-        top: 0;
-        left: 0;
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial}
+    body{background:var(--bg); color:#ddd; overflow:hidden}
+
+    /* canvas fills the screen */
+    canvas#particles{position:fixed;inset:0;display:block;z-index:0}
+
+    /* overlay / centered splash */
+    .splash{
+      position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:5;pointer-events:auto;
+      backdrop-filter: blur(6px);
     }
-    #ui {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        text-align: center;
-        z-index: 10;
+    .card{
+      text-align:center; padding:48px 56px; border-radius:16px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); box-shadow:0 8px 40px rgba(0,0,0,0.6);
+      border:1px solid rgba(255,255,255,0.03);
     }
-    #ui img {
-        width: 180px;
-        height: 180px;
-        margin-bottom: 20px;
-        border-radius: 20px;
-        box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    .logo{
+      font-weight:800;font-size:48px;letter-spacing:4px;color:var(--muted);margin-bottom:18px;position:relative;
     }
-    #ui button {
-        display: block;
-        margin: 15px auto;
-        padding: 12px 40px;
-        font-size: 20px;
-        background: none;
-        border: none;
-        color: white;
-        text-shadow: 1px 1px 2px #000;
-        cursor: pointer;
-        transition: 0.3s;
-        font-weight: bold;
+    .logo .accent{color:var(--accent);text-shadow:0 6px 30px rgba(155,89,255,0.18)}
+
+    .enter-btn{
+      display:inline-block;margin:18px auto;padding:12px 30px;border-radius:999px;background:linear-gradient(90deg, rgba(155,89,255,0.12), rgba(155,89,255,0.06));color:var(--muted);font-weight:600;cursor:pointer;border:none;outline:none;font-size:16px;box-shadow:0 6px 18px rgba(0,0,0,0.5)
     }
-    #ui button:hover {
-        color: #FFA500;
-        text-shadow: 0 0 10px #FFA500, 0 0 20px #FFA500;
+    .enter-btn:hover{transform:translateY(-2px)}
+
+    /* small flat buttons under logo */
+    .flat-row{display:flex;gap:18px;align-items:center;justify-content:center;margin-top:12px}
+    .flat{
+      padding:8px 14px;border-radius:999px;background:transparent;border:0;cursor:pointer;font-weight:700;color:rgba(255,255,255,0.85);font-size:14px;outline:none;
+      transition:all .18s ease;
     }
-</style>
+    .flat:hover{color:var(--accent);text-shadow:0 6px 20px rgba(155,89,255,0.12)}
+
+    /* top-left small credit */
+    .credit{position:fixed;left:16px;top:16px;font-size:12px;color:rgba(255,255,255,0.5);z-index:6}
+
+    /* toast */
+    .toast{position:fixed;right:20px;bottom:20px;background:var(--glass);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);color:#eee;z-index:10;box-shadow:0 10px 30px rgba(0,0,0,0.7);opacity:0;transform:translateY(8px);transition:all .28s ease}
+    .toast.show{opacity:1;transform:none}
+
+    /* small helper for clickable link look */
+    a.nolink{color:inherit;text-decoration:none}
+
+    /* responsive */
+    @media (max-width:520px){
+      .card{padding:28px 20px;border-radius:12px}
+      .logo{font-size:28px}
+      .enter-btn{font-size:14px;padding:10px 22px}
+    }
+  </style>
 </head>
 <body>
+  <canvas id="particles"></canvas>
 
-<canvas id="particleCanvas"></canvas>
+  <div class="splash" id="splash">
+    <div class="card">
+      <div class="logo"><span class="accent">LOFI</span> PORTAL</div>
+      <div style="color:rgba(255,255,255,0.55);margin-bottom:10px">chill beats & soft purple vibes</div>
 
-<div id="ui">
-    <img src="https://via.placeholder.com/180" alt="Logo">
-    <button id="discordButton">Join Discord</button>
-    <button id="copyButton">Copy Script</button>
-</div>
+      <button id="enter" class="enter-btn">Enter</button>
+
+      <div class="flat-row">
+        <button id="discord" class="flat">Join Discord</button>
+        <button id="copy" class="flat">Copy Script</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="credit">Made with ♥ — click Enter to start</div>
+  <div id="toast" class="toast">Copied!</div>
 
 <script>
-const canvas = document.getElementById('particleCanvas');
+// ----------------------------
+// CONFIG: replace these track URLs with your own mp3/ogg files
+// If you have hosted audio files, add them to the `tracks` array.
+// ----------------------------
+const tracks = [
+  // placeholders: replace with real URLs
+  // e.g. '/assets/lofi1.mp3', 'https://example.com/lofi2.ogg'
+  'https://cdn.jwplayer.com/media/2VHG3y7p.mp3',
+  'https://cdn.jwplayer.com/media/6r6i0Q1F.mp3'
+];
+
+let audio = null;
+let isPlaying = false;
+
+function startRandomTrack(){
+  if(tracks.length === 0) return;
+  const url = tracks[Math.floor(Math.random()*tracks.length)];
+  if(audio){audio.pause(); audio.remove();}
+  audio = new Audio(url);
+  audio.loop = true;
+  audio.crossOrigin = 'anonymous';
+  audio.volume = 0.7;
+  const p = audio.play();
+  if(p && p.catch){ p.catch(()=>console.warn('Playback prevented by browser until a user gesture — click Enter.')) }
+  isPlaying = true;
+}
+
+// ----------------------------
+// particle system + mouse line to closest particle
+// ----------------------------
+const canvas = document.getElementById('particles');
 const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+let W = canvas.width = innerWidth;
+let H = canvas.height = innerHeight;
+let DPR = Math.max(1, devicePixelRatio || 1);
+canvas.width = W * DPR; canvas.height = H * DPR; canvas.style.width = W+'px'; canvas.style.height = H+'px'; ctx.scale(DPR, DPR);
 
-// Particle background
-let particles = [];
-for (let i = 0; i < 120; i++) {
-    particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.6,
-        vy: (Math.random() - 0.5) * 0.6,
-        size: Math.random() * 3 + 1
-    });
-}
-
-function animate() {
-    ctx.fillStyle = 'rgba(123,63,0,0.4)';
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle = 'white';
-    for (let p of particles) {
-        p.x += p.vx;
-        p.y += p.vy;
-
-        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
-        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
-
-        ctx.beginPath();
-        ctx.arc(p.x,p.y,p.size,0,Math.PI*2);
-        ctx.fill();
-    }
-    requestAnimationFrame(animate);
-}
-animate();
-
-window.addEventListener('resize', ()=>{
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+window.addEventListener('resize',()=>{
+  W = canvas.width = innerWidth; H = canvas.height = innerHeight;
+  canvas.width = W * DPR; canvas.height = H * DPR; canvas.style.width = W+'px'; canvas.style.height = H+'px'; ctx.scale(DPR, DPR);
 });
 
-// Clipboard buttons
-document.getElementById('discordButton').onclick = () => {
-    navigator.clipboard.writeText("HEY").then(()=> alert("Copied: HEY"));
-};
-document.getElementById('copyButton').onclick = () => {
-    navigator.clipboard.writeText("Hello from demo site!").then(()=> alert("Copied script!"));
-};
-</script>
+const particles = [];
+const COUNT = Math.max(60, Math.floor((W*H)/60000));
+for(let i=0;i<COUNT;i++){
+  particles.push({
+    x: Math.random()*W,
+    y: Math.random()*H,
+    r: 1.5 + Math.random()*2.6,
+    vx: (Math.random()-0.5)*0.25,
+    vy: (Math.random()-0.5)*0.25,
+    hue: 270 + Math.random()*30, // purple-ish
+    life: Math.random()*100
+  });
+}
 
+const mouse = {x:W/2,y:H/2,active:false};
+window.addEventListener('mousemove', (e)=>{mouse.x = e.clientX; mouse.y = e.clientY;});
+canvas.addEventListener('mouseenter', ()=>mouse.active=true);
+canvas.addEventListener('mouseleave', ()=>mouse.active=false);
+
+function update(){
+  for(const p of particles){
+    p.x += p.vx; p.y += p.vy;
+    p.life += 0.05;
+    // wrap
+    if(p.x < -50) p.x = W + 50; if(p.x > W + 50) p.x = -50;
+    if(p.y < -50) p.y = H + 50; if(p.y > H + 50) p.y = -50;
+  }
+}
+
+function render(){
+  // dark background
+  ctx.clearRect(0,0,W,H);
+  // subtle vignette
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,0.12)');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+  // draw connections faintly
+  for(const p of particles){
+    // glow dot
+    const grad = ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*10);
+    grad.addColorStop(0,`rgba(155,89,255,0.18)`);
+    grad.addColorStop(0.6,`rgba(155,89,255,0.06)`);
+    grad.addColorStop(1,'rgba(155,89,255,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*8,0,Math.PI*2); ctx.fill();
+
+    // core
+    ctx.fillStyle = 'rgba(155,89,255,0.9)';
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+  }
+
+  // draw line from mouse to closest particle
+  if(mouse.active){
+    let closest = null; let best = Infinity;
+    for(const p of particles){
+      const dx = p.x - mouse.x; const dy = p.y - mouse.y; const d = Math.hypot(dx,dy);
+      if(d < best){best = d; closest = p}
+    }
+    if(closest){
+      // dynamic alpha and thickness based on distance
+      const alpha = Math.max(0.06, 1 - Math.min(1, best/420));
+      ctx.beginPath(); ctx.moveTo(mouse.x, mouse.y); ctx.lineTo(closest.x, closest.y);
+      ctx.strokeStyle = `rgba(155,89,255,${alpha})`;
+      ctx.lineWidth = 1.6 + (1-alpha)*3.2;
+      ctx.stroke();
+
+      // small moving cursor line effect
+      ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 3, 0, Math.PI*2); ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.fill();
+    }
+  }
+}
+
+function loop(){update();render();requestAnimationFrame(loop)}
+loop();
+
+// ----------------------------
+// UI interactions
+// ----------------------------
+const splash = document.getElementById('splash');
+const enter = document.getElementById('enter');
+const discord = document.getElementById('discord');
+const copyBtn = document.getElementById('copy');
+const toast = document.getElementById('toast');
+
+enter.addEventListener('click', ()=>{
+  // start audio and hide splash
+  startRandomTrack();
+  splash.style.display = 'none';
+});
+
+discord.addEventListener('click', ()=>{
+  // replace with your discord invite link
+  window.open('https://discord.gg/', '_blank');
+});
+
+copyBtn.addEventListener('click', async ()=>{
+  const exampleScript = `-- example script\nprint('hello from your copied script!')`;
+  try{
+    await navigator.clipboard.writeText(exampleScript);
+    showToast('Script copied to clipboard');
+  }catch(e){
+    showToast('Unable to copy — select and copy manually');
+  }
+});
+
+function showToast(txt){toast.textContent = txt; toast.classList.add('show'); setTimeout(()=>toast.classList.remove('show'),1800)}
+
+// stop audio when page hidden
+window.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){ if(audio) audio.pause(); } else { if(audio && !audio.paused) audio.play().catch(()=>{}); }
+});
+
+</script>
 </body>
 </html>
